@@ -14,6 +14,8 @@ tavily-python = "^0.5.3"
 langchain-openai = "^0.3.11"
 pinecone = "^6.0.2"
 langchain-huggingface = "^0.1.2"
+uvicorn = "^0.34.0"
+fastapi = "^0.115.12"
 
 
 [build-system]
