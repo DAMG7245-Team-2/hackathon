@@ -110,4 +110,18 @@ D. Application Process Integration
 Solution:The correct answer is (B) Application Programming Interface. An API is a set of definitions and protocols that enables two software components to communicate with each other. It acts as an intermediary that allows applications to talk to each other, exchange data, and share functionality
 ```
 
-...
+## Running the FastAPI Backend
+
+To run the FastAPI backend, use the following command:
+
+```sh
+uvicorn backend.app:app --reload
+```
+
+## Running the Streamlit UI Chat
+
+To run the Streamlit UI chat, use the following command:
+
+```sh
+streamlit run frontend/app.py
+```
