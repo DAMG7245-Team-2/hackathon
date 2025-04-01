@@ -37,7 +37,7 @@ class Configuration:
     writer_provider: str = "openai"
     writer_model: str = "gpt-4o-mini"
     search_api: str = "tavily"
-    number_of_queries: int = 2
+    number_of_queries: int = 5
     top_k: int = 2 # pinecone top k results
     max_search_depth: int = 2
 
