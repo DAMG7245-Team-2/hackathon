@@ -398,4 +398,4 @@ report_workflow.add_edge("compile_final_report", END)
 graph = report_workflow.compile()
 if __name__ == "__main__":
     with open("./graph.md", 'w') as f:
-        f.write(graph.get_graph(xray=1).draw_mermaid())
+        f.write("```mermaid\n"+graph.get_graph(xray=1).draw_mermaid()+"```\n")
