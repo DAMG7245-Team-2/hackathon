@@ -1,6 +1,8 @@
+import asyncio
 import os
 from typing import Any, Dict, Literal
 
+from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
@@ -27,6 +29,7 @@ from agent.prompts import (
 )
 from agent.utils import async_search, format_sections, search_pinecone
 
+load_dotenv()
 
 async def planning_node(state: ReportState, config: RunnableConfig):
     """Generate the initial report sections based on the job description.
@@ -396,6 +399,37 @@ report_workflow.add_edge("compile_final_report", END)
 
 
 graph = report_workflow.compile()
+
+async def main():
+
+    sample_jd = """Full job description
+Minimum qualifications:
+Bachelor’s degree or equivalent practical experience.
+2 years of experience with software development in one or more programming languages, or 1 year of experience with an advanced degree.
+2 years of experience with data structures or algorithms in an academic or industry setting.
+2 years of experience with backend or fullstack software development.
+Preferred qualifications:
+Master's degree or PhD in Computer Science or a related technical field.
+2 years of experience with performance, systems data analysis, visualization tools, or debugging.
+Experience in developing accessible technologies.
+Experience in code and system health, diagnosis and resolution, and software test engineering.
+Experience with C++ and SQL.
+About the job
+
+Google's software engineers develop the next-generation technologies that change how billions of users connect, explore, and interact with information and one another. Our products need to handle information at massive scale, and extend well beyond web search. We're looking for engineers who bring fresh ideas from all areas, including information retrieval, distributed computing, large-scale system design, networking and data storage, security, artificial intelligence, natural language processing, UI design and mobile; the list goes on and is growing every day. As a software engineer, you will work on a specific project critical to Google’s needs with opportunities to switch teams and projects as you and our fast-paced business grow and evolve. We need our engineers to be versatile, display leadership qualities and be enthusiastic to take on new problems across the full-stack as we continue to push technology forward.Google Ads operates across several countries and is composed of the engineering teams like Search Ads, Display, Video Ads and Apps (AViD), YouTube Ads, Analytics, Insights and Measurements (AIM), Ads Privacy and Safety (APaS), Commerce, Travel and Customer Engagement, and two Departments: Reach User Experience (UX) and Ads Engineering Productivity.Google Ads is helping power the open internet with the best technology that connects and creates value for people, publishers, advertisers, and Google. We’re made up of multiple teams, building Google’s Advertising products including search, display, shopping, travel and video advertising, as well as analytics. Our teams create trusted experiences between people and businesses with useful ads. We help grow businesses of all sizes from small businesses, to large brands, to YouTube creators, with effective advertiser tools that deliver measurable results. We also enable Google to engage with customers at scale.The US base salary range for this full-time position is $141,000-$202,000 + bonus + equity + benefits. Our salary ranges are determined by role, level, and location. Within the range, individual pay is determined by work location and additional factors, including job-related skills, experience, and relevant education or training. Your recruiter can share more about the specific salary range for your preferred location during the hiring process.Please note that the compensation details listed in US role postings reflect the base salary only, and do not include bonus, equity, or benefits. Learn more aboutbenefits at Google.
+Responsibilities
+
+Design, develop, test, deploy, maintain, and improve software.
+Manage person's project priorities, deadlines, and deliverables."""
+
+    output = await graph.ainvoke({"topic": sample_jd})
+    return output
+
 if __name__ == "__main__":
+
+    load_dotenv()
+
     with open("./graph.md", 'w') as f:
         f.write(graph.get_graph(xray=1).draw_mermaid())
+    final = asyncio.run(main())
+    print(final)
