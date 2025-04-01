@@ -64,7 +64,7 @@ async def planning_node(state: ReportState, config: RunnableConfig):
     )
     messages = [
         SystemMessage(content=system_instructions),
-        HumanMessage(content="Generate search queries that will help with planning a comprehensive interview preparation guide."),
+        HumanMessage(content="Generate search queries that will help with planning a comprehensive interview preparation guide report."),
     ]
     results = structured_llm.invoke(messages)
     query_list = [query.search_query for query in results.queries]
@@ -77,7 +77,7 @@ async def planning_node(state: ReportState, config: RunnableConfig):
 
     planner_provider = myconfig.planner_provider
     planner_model_name = myconfig.planner_model
-    planner_message = """Generate the sections of the report. Your response must include at least 8 main body sections with each 'sections' field containing a list of sections. 
+    planner_message = """Generate the sections of the interview preparation guide report. Your response must include at least 8 main body sections with each 'sections' field containing a list of sections. 
                         Each section must have: name, description, plan, research, and content fields."""
     planner_model = init_chat_model(model_provider=planner_provider, model=planner_model_name)
     structured_planner_llm = planner_model.with_structured_output(Sections)

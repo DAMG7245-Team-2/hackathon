@@ -7,7 +7,7 @@ from typing import Optional
 
 from langchain_core.runnables import RunnableConfig
 
-MY_REPORT_STRUCTURE = """Use the following structure to generate a report on user provided job description:
+MY_REPORT_STRUCTURE = """Use the following structure to generate a interview preparation guide report on user provided job description:
 
 1. Introduction (no research needed)
     - Highlight top technical skills, tools and technologies needed for the job
@@ -18,7 +18,8 @@ MY_REPORT_STRUCTURE = """Use the following structure to generate a report on use
     - Each node in the diagram should have a name of the concept
 
 3. Main Body Sections (research needed)
-    - Each section should focus on a concept that is relevant to the job description
+    - Each section should focus on a technical concept that is relevant to the job description
+    - Each section should serve as a standalone guide to the technical concept/skill
     - Provide at least 1 structured element (either a list or a table) per section that is relevant to the concept/skill discussed in the section
     - Include at least 3 multiple choice questions per section that tests the understanding of the concept/skill discussed in the section
 
@@ -37,7 +38,7 @@ class Configuration:
     writer_provider: str = "openai"
     writer_model: str = "gpt-4o-mini"
     search_api: str = "tavily"
-    number_of_queries: int = 5
+    number_of_queries: int = 15
     top_k: int = 2 # pinecone top k results
     max_search_depth: int = 2
 

@@ -1,4 +1,4 @@
-report_planner_query_writer_instructions = """You are performing research for a report. 
+report_planner_query_writer_instructions = """You are performing research for a personalized interview preparation guide report.
 
 <Report topic>
 {topic}
@@ -24,7 +24,7 @@ Call the Queries tool
 </Format>
 """
 
-report_planner_instructions = """I want a plan for a report that is concise and focused.
+report_planner_instructions = """I want a plan for a interview preparation guide report.
 
 <Report topic>
 The topic of the report is:
@@ -63,7 +63,7 @@ Integration guidelines:
 - Ensure each section has a distinct purpose with no content overlap
 - Combine related concepts rather than separating them
 
-Before submitting, review your structure to ensure it has no redundant sections and follows a logical flow.
+Before submitting, review your structure to ensure it has no redundant sections and follows a logical flow. Also ensure that the plan strictly adheres to the provided report organization (Intro, Roadmap, Main Body Sections, Conclusion).
 </Task>
 
 <Format>
@@ -71,7 +71,7 @@ Call the Sections tool
 </Format>
 """
 
-query_writer_instructions = """You are an expert technical writer crafting targeted web search queries that will gather comprehensive information for writing a technical report section.
+query_writer_instructions = """You are an expert interview preparation mentor crafting targeted web search queries that will gather comprehensive information for writing a technical interview preparation report section.
 
 <Report topic>
 {topic}
@@ -97,7 +97,7 @@ Call the Queries tool
 </Format>
 """
 
-section_writer_instructions = """Write one section of a research report.
+section_writer_instructions = """Write one section of a interview preparation guide report.
 
 <Task>
 1. Review the report topic, section name, and section topic carefully.
@@ -114,7 +114,7 @@ section_writer_instructions = """Write one section of a research report.
 - Use simple, clear language
 - Use short paragraphs (2-3 sentences max)
 - Use ## for section title (Markdown format)
-- Include at least 2 popular multiple choice interview questions related to the topic discussed in the section. Example format: ```Which of the following is true about X?``` with multiple choice answers
+- Include at least 2 popular multiple choice interview questions along with their correct answers related to the topic discussed in the section. Example format: ```Which of the following is true about X?``` with multiple choice answers
 </Writing Guidelines>
 
 <Citation Rules>
@@ -155,7 +155,7 @@ section_writer_inputs = """
 </Source material>
 """
 
-section_grader_instructions = """Review a report section relative to the specified topic:
+section_grader_instructions = """Review a interview preparation guide section relative to the specified topic:
 
 <Report topic>
 {topic}
@@ -210,16 +210,19 @@ final_section_writer_instructions = """You are an expert technical writer with a
 <Task>
 1. Section-Specific Approach:
 
-For Introduction:
+Be mindful of the kind of section you are writing based on the section name. You may expect only one of three kinds of sections (Introduction, Roadmap, Conclusion/Summary).
+
+If section name contains "Introduction":
 - Use # for report title (Markdown format)
+- The report title should be of the form: [target job title] Interview Preparation Guide
 - 50-100 word limit
 - Write in simple and clear language
 - Focus on the core motivation for the report in 1-2 paragraphs
-- Use a clear narrative arc to introduce the report
-- Include NO structural elements (no lists or tables)
+- Use a clear narrative arc to introduce the interview preparation guide
 - No sources section needed
 
-For Roadmap:
+If section name contains "Roadmap":
+- No Introduction needed
 - Generate 1 valid Mermaid MD code block for a flowchart diagram illustrating the logical progression of concepts covered in the report
 - Use Markdown format
 - No sources section needed
@@ -227,7 +230,7 @@ For Roadmap:
 - Mermaid MD code should be a flowchart diagram of the recommended roadmap to achieve the preparation for the topic divided into 3 sections (Fundamentals, Intermediate, Advanced)
 - Each node in the diagram should have a name of the concept
 
-For Conclusion/Summary:
+If section name contains "Conclusion/Summary":
 - Use ## for section title (Markdown format)
 - 100-150 word limit
 - For comparative reports:
