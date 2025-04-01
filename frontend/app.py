@@ -21,13 +21,6 @@ with st.sidebar:
     st.title("Job Interview Preparation Assistant")
     st.markdown("This assistant helps you prepare for job interviews by generating comprehensive research documents based on job descriptions.")
     
-
-    st.session_state.job_field = st.selectbox(
-        "Job Field", 
-        options=["Data Engineering", "Data Science", "Machine Learning", "Software Engineering", "DevOps", "Cloud Engineering"], 
-        index=0
-    )
-    
     # Clear conversation button
     if st.button("Clear Conversation"):
         st.session_state.messages = []
@@ -65,15 +58,13 @@ if prompt := st.chat_input("Enter a job description to get started..."):
             st.write(prompt)
         
         with st.chat_message("assistant"):
-            with st.spinner(f"Generating interview preparation guide for {st.session_state.job_field} position..."):
+            with st.spinner(f"Deep research in progress..."):
                 try:
                     response = requests.post(
                         f"{FASTAPI_URL}/chat",
                         json={
-                            "message": prompt,
-                            "job_field": st.session_state.job_field
-                        },
-                        timeout=120  
+                            "user_message": prompt
+                        }
                     )
                     
                     if response.status_code == 200:
@@ -91,8 +82,6 @@ if prompt := st.chat_input("Enter a job description to get started..."):
                             "is_markdown": True
                         }
                         
-                        
-                            
                         st.session_state.messages.append(message_data)
                     else:
                         st.error(f"Error: {response.status_code} - {response.text}")
