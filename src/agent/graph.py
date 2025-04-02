@@ -14,22 +14,59 @@ from pinecone import Pinecone
 
 from agent.configuration import Configuration
 from agent.state import (
+    JobDescriptionValidation,
     ReportState,
     SectionState,
     SectionOutputState,
     ReportStateInput,
     ReportStateOutput,
     Queries,
-    Sections, Feedback,
+    Sections,
+    Feedback,
 )
 from agent.prompts import (
     report_planner_query_writer_instructions,
-    report_planner_instructions, query_writer_instructions, section_writer_inputs, section_writer_instructions,
-    section_grader_instructions, final_section_writer_instructions,
+    report_planner_instructions,
+    query_writer_instructions,
+    section_writer_inputs,
+    section_writer_instructions,
+    section_grader_instructions,
+    final_section_writer_instructions,
 )
 from agent.utils import async_search, format_sections, search_pinecone
 
 load_dotenv()
+
+
+def is_valid_job_description(
+    state: ReportState, config: RunnableConfig
+) -> Command[Literal["planning_node", END]]:
+    """Validate the input of the report."""
+    my_config = Configuration.from_runnable_config(config)
+    job_description = state["topic"]
+    writer_provider = my_config.writer_provider
+    writer_model_name = my_config.writer_model
+    writer_model = init_chat_model(
+        model_provider=writer_provider, model=writer_model_name
+    )
+    structured_llm = writer_model.with_structured_output(JobDescriptionValidation)
+    system_instructions = "You are a job description validator. You will be given a text and you will need to validate if it is a valid job description. If the job description is not valid, you will return 'invalid'. If the job description is valid, you will return 'valid'."
+    messages = [
+        SystemMessage(content=system_instructions),
+        HumanMessage(content=job_description),
+    ]
+    results = structured_llm.invoke(messages)
+    print("Job description validation results: ", results)
+    if results.valid == "valid":
+        return Command(goto="planning_node")
+    else:
+        return Command(
+            goto=END,
+            update={
+                "final_report": "Invalid job description. Please provide a valid job description."
+            },
+        )
+
 
 async def planning_node(state: ReportState, config: RunnableConfig):
     """Generate the initial report sections based on the job description.
@@ -55,7 +92,9 @@ async def planning_node(state: ReportState, config: RunnableConfig):
 
     writer_provider = myconfig.writer_provider
     writer_model_name = myconfig.writer_model
-    writer_model = init_chat_model(model_provider=writer_provider, model=writer_model_name)
+    writer_model = init_chat_model(
+        model_provider=writer_provider, model=writer_model_name
+    )
     structured_llm = writer_model.with_structured_output(Queries)
     system_instructions = report_planner_query_writer_instructions.format(
         topic=topic,
@@ -64,7 +103,9 @@ async def planning_node(state: ReportState, config: RunnableConfig):
     )
     messages = [
         SystemMessage(content=system_instructions),
-        HumanMessage(content="Generate search queries that will help with planning a comprehensive interview preparation guide report."),
+        HumanMessage(
+            content="Generate search queries that will help with planning a comprehensive interview preparation guide report."
+        ),
     ]
     results = structured_llm.invoke(messages)
     query_list = [query.search_query for query in results.queries]
@@ -79,7 +120,9 @@ async def planning_node(state: ReportState, config: RunnableConfig):
     planner_model_name = myconfig.planner_model
     planner_message = """Generate the sections of the interview preparation guide report. Your response must include at least 8 main body sections with each 'sections' field containing a list of sections. 
                         Each section must have: name, description, plan, research, and content fields."""
-    planner_model = init_chat_model(model_provider=planner_provider, model=planner_model_name)
+    planner_model = init_chat_model(
+        model_provider=planner_provider, model=planner_model_name
+    )
     structured_planner_llm = planner_model.with_structured_output(Sections)
     messages = [
         SystemMessage(content=sections_system_instructions),
@@ -89,19 +132,20 @@ async def planning_node(state: ReportState, config: RunnableConfig):
     sections = report_sections.sections
     return {"sections": sections}
 
+
 def section_generate_query(state: SectionState, config: RunnableConfig):
     """Generate search queries for researching a specific section.
 
-        This node uses an LLM to generate targeted search queries based on the
-        section topic and description.
+    This node uses an LLM to generate targeted search queries based on the
+    section topic and description.
 
-        Args:
-            state: Current state containing section details
-            config: Configuration including number of queries to generate
+    Args:
+        state: Current state containing section details
+        config: Configuration including number of queries to generate
 
-        Returns:
-            Dict containing the generated search queries
-        """
+    Returns:
+        Dict containing the generated search queries
+    """
 
     # Get state
     topic = state["topic"]
@@ -114,34 +158,48 @@ def section_generate_query(state: SectionState, config: RunnableConfig):
     # Generate queries
     writer_provider = my_config.writer_provider
     writer_model_name = my_config.writer_model
-    writer_model = init_chat_model(model=writer_model_name, model_provider=writer_provider)
+    writer_model = init_chat_model(
+        model=writer_model_name, model_provider=writer_provider
+    )
     structured_llm = writer_model.with_structured_output(Queries)
 
     # Format system instructions
-    system_instructions = query_writer_instructions.format(topic=topic,
-                                                           section_topic=section.description,
-                                                           number_of_queries=num_queries)
+    system_instructions = query_writer_instructions.format(
+        topic=topic, section_topic=section.description, number_of_queries=num_queries
+    )
 
     # Generate queries
-    queries = structured_llm.invoke([SystemMessage(content=system_instructions),
-                                     HumanMessage(content="Generate search queries on the provided topic.")])
+    queries = structured_llm.invoke(
+        [
+            SystemMessage(content=system_instructions),
+            HumanMessage(content="Generate search queries on the provided topic."),
+        ]
+    )
 
     return {"search_queries": queries.queries}
 
-def map_section_generation(state: ReportState, config: RunnableConfig) -> Command[Literal["generate_sections"]]:
+
+def map_section_generation(
+    state: ReportState, config: RunnableConfig
+) -> Command[Literal["generate_sections"]]:
     topic = state["topic"]
-    sections = state['sections']
+    sections = state["sections"]
     sections_str = "\n\n".join(
         f"Section: {section.name}\n"
         f"Description: {section.description}\n"
         f"Research needed: {'Yes' if section.research else 'No'}\n"
         for section in sections
     )
-    return Command(goto=[
-        Send("generate_sections", {"topic": topic, "section": s, "search_iterations": 0})
-        for s in sections
-        if s.research
-    ])
+    return Command(
+        goto=[
+            Send(
+                "generate_sections",
+                {"topic": topic, "section": s, "search_iterations": 0},
+            )
+            for s in sections
+            if s.research
+        ]
+    )
 
 
 async def search_web(state: SectionState, config: RunnableConfig):
@@ -170,31 +228,15 @@ async def search_web(state: SectionState, config: RunnableConfig):
     # embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     # pinecone_search_str = search_pinecone(index, embeddings, query_list, top_k)
 
-    return {"source_str": source_str, "search_iterations": state["search_iterations"] + 1}
+    return {
+        "source_str": source_str,
+        "search_iterations": state["search_iterations"] + 1,
+    }
 
-# def search_rag(state: SectionState, config: RunnableConfig):
-#     """Search the Pinecone database for information related to the section.
-#
-#     Args:
-#         state: Current state containing section details
-#         config: Configuration including search depth
-#
-#     Returns:
-#         Dict containing the search results
-#     """
-#
-#     # Get state
-#     my_config = Configuration.from_runnable_config(config)
-#     top_k = my_config.top_k
-#
-#     query_list = [query.search_query for query in state["search_queries"]]
-#
-#     # Search pinecone database for context matching a list of queries with top_k of results for each query
-#     source_str = search_pinecone(query_list, top_k)
-#
-#     return {"source_str": source_str, "search_iterations": state["search_iterations"] + 1}
 
-def write_and_grade_sections(state: SectionState, config: RunnableConfig) -> Command[Literal[END, "search_web_rag"]]:
+def write_and_grade_sections(
+    state: SectionState, config: RunnableConfig
+) -> Command[Literal[END, "search_web_rag"]]:
     """Write the section content and grade the section for quality.
     Quality pass if the section has enough content, is relevant to the section topic and description.
     If fail, then trigger more search queries to gather more context.
@@ -217,45 +259,64 @@ def write_and_grade_sections(state: SectionState, config: RunnableConfig) -> Com
     # Write the section content
     writer_provider = my_config.writer_provider
     writer_model_name = my_config.writer_model
-    writer_model = init_chat_model(model_provider=writer_provider, model=writer_model_name)
-    section_writer_inputs_formatted = section_writer_inputs.format(topic=topic,
-                                                                   section_name=section.name,
-                                                                   section_topic=section.description,
-                                                                   context=source_str,
-                                                                   section_content=section.content)
-    messages = [SystemMessage(content=section_writer_instructions),HumanMessage(content=section_writer_inputs_formatted)]
+    writer_model = init_chat_model(
+        model_provider=writer_provider, model=writer_model_name
+    )
+    section_writer_inputs_formatted = section_writer_inputs.format(
+        topic=topic,
+        section_name=section.name,
+        section_topic=section.description,
+        context=source_str,
+        section_content=section.content,
+    )
+    messages = [
+        SystemMessage(content=section_writer_instructions),
+        HumanMessage(content=section_writer_inputs_formatted),
+    ]
     section_content = writer_model.invoke(messages)
     section.content = section_content.content
 
     grading_provider = my_config.planner_provider
     grading_model_name = my_config.planner_model
-    grading_model = init_chat_model(model_provider=grading_provider, model=grading_model_name)
-    grading_model_with_structured_output = grading_model.with_structured_output(Feedback)
-    section_grader_instructions_formatted = section_grader_instructions.format(topic=topic,
-                                                                                section_topic=section.description,
-                                                                                section=section.content,
-                                                                                number_of_follow_up_queries=my_config.number_of_queries)
-    section_grader_message = ("Grade the report and consider follow-up questions for missing information. "
-                              "If the grade is 'pass', return empty strings for all follow-up queries. "
-                              "If the grade is 'fail', provide specific search queries to gather missing information.")
+    grading_model = init_chat_model(
+        model_provider=grading_provider, model=grading_model_name
+    )
+    grading_model_with_structured_output = grading_model.with_structured_output(
+        Feedback
+    )
+    section_grader_instructions_formatted = section_grader_instructions.format(
+        topic=topic,
+        section_topic=section.description,
+        section=section.content,
+        number_of_follow_up_queries=my_config.number_of_queries,
+    )
+    section_grader_message = (
+        "Grade the report and consider follow-up questions for missing information. "
+        "If the grade is 'pass', return empty strings for all follow-up queries. "
+        "If the grade is 'fail', provide specific search queries to gather missing information."
+    )
 
-    messages = [SystemMessage(content=section_grader_instructions_formatted), HumanMessage(content=section_grader_message)]
+    messages = [
+        SystemMessage(content=section_grader_instructions_formatted),
+        HumanMessage(content=section_grader_message),
+    ]
     feedback = grading_model_with_structured_output.invoke(messages)
 
     # Check if the section is complete
-    if feedback.grade == "pass" or state["search_iterations"] >= my_config.max_search_depth:
+    if (
+        feedback.grade == "pass"
+        or state["search_iterations"] >= my_config.max_search_depth
+    ):
         # Publish the section to completed sections
-        return Command(
-            update={"completed_sections": [section]},
-            goto=END
-        )
+        return Command(update={"completed_sections": [section]}, goto=END)
 
     # Update the existing section with new content and update search queries
     else:
         return Command(
             update={"search_queries": feedback.follow_up_queries, "section": section},
-            goto="search_web"
+            goto="search_web",
         )
+
 
 def write_roadmap_conclusion(state: SectionState, config: RunnableConfig):
     """Write the introduction and conclusion of the report.
@@ -275,24 +336,35 @@ def write_roadmap_conclusion(state: SectionState, config: RunnableConfig):
     my_config = Configuration.from_runnable_config(config)
 
     # Format system instructions
-    system_instructions = final_section_writer_instructions.format(topic=topic, section_name=section.name,
-                                                                   section_topic=section.description,
-                                                                   context=completed_report_sections)
+    system_instructions = final_section_writer_instructions.format(
+        topic=topic,
+        section_name=section.name,
+        section_topic=section.description,
+        context=completed_report_sections,
+    )
 
     # Generate section
     writer_provider = my_config.writer_provider
     writer_model_name = my_config.writer_model
-    writer_model = init_chat_model(model=writer_model_name, model_provider=writer_provider)
+    writer_model = init_chat_model(
+        model=writer_model_name, model_provider=writer_provider
+    )
 
-    section_content = writer_model.invoke([SystemMessage(content=system_instructions),
-                                           HumanMessage(
-                                               content="Generate a report section based on the provided sources.")])
+    section_content = writer_model.invoke(
+        [
+            SystemMessage(content=system_instructions),
+            HumanMessage(
+                content="Generate a report section based on the provided sources."
+            ),
+        ]
+    )
 
     # Write content to section
     section.content = section_content.content
 
     # Write the updated section to completed sections
     return {"completed_sections": [section]}
+
 
 def collect_completed_sections(state: ReportState, config: RunnableConfig):
     """Collect the completed sections and generate the final report.
@@ -356,14 +428,20 @@ def initiate_final_section_writing(state: ReportState):
 
     # Kick off section writing in parallel via Send() API for any sections that do not require research
     return [
-        Send("write_roadmap_conclusion", {"topic": state["topic"], "section": s, "report_sections_from_research": state["report_sections_from_research"]})
+        Send(
+            "write_roadmap_conclusion",
+            {
+                "topic": state["topic"],
+                "section": s,
+                "report_sections_from_research": state["report_sections_from_research"],
+            },
+        )
         for s in state["sections"]
         if not s.research
     ]
 
 
-
-section_workflow = StateGraph(SectionState,output=SectionOutputState)
+section_workflow = StateGraph(SectionState, output=SectionOutputState)
 
 section_workflow.add_node("section_generate_query", section_generate_query)
 section_workflow.add_node("search_web_rag", search_web)
@@ -383,6 +461,7 @@ report_workflow = StateGraph(
     config_schema=Configuration,
 )
 
+report_workflow.add_node("is_valid_job_description", is_valid_job_description)
 report_workflow.add_node("planning_node", planning_node)
 report_workflow.add_node("map_section_generation", map_section_generation)
 report_workflow.add_node("generate_sections", section_workflow.compile())
@@ -390,15 +469,18 @@ report_workflow.add_node("collect_sections", collect_completed_sections)
 report_workflow.add_node("write_roadmap_conclusion", write_roadmap_conclusion)
 report_workflow.add_node("compile_final_report", compile_final_report)
 
-report_workflow.add_edge(START, "planning_node")
+report_workflow.add_edge(START, "is_valid_job_description")
 report_workflow.add_edge("planning_node", "map_section_generation")
 report_workflow.add_edge("generate_sections", "collect_sections")
-report_workflow.add_conditional_edges("collect_sections", initiate_final_section_writing, ["write_roadmap_conclusion"])
+report_workflow.add_conditional_edges(
+    "collect_sections", initiate_final_section_writing, ["write_roadmap_conclusion"]
+)
 report_workflow.add_edge("write_roadmap_conclusion", "compile_final_report")
 report_workflow.add_edge("compile_final_report", END)
 
 
 graph = report_workflow.compile()
+
 
 async def main():
 
@@ -425,11 +507,12 @@ Manage person's project priorities, deadlines, and deliverables."""
     output = await graph.ainvoke({"topic": sample_jd})
     return output
 
+
 if __name__ == "__main__":
 
     load_dotenv()
 
-    with open("./graph.md", 'w') as f:
+    with open("./graph.md", "w") as f:
         f.write(graph.get_graph(xray=1).draw_mermaid())
     final = asyncio.run(main())
     print(final)

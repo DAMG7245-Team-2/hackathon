@@ -66,3 +66,8 @@ class Feedback(BaseModel):
     follow_up_queries: list[SearchQuery] = Field(
         description="Follow-up queries to refine the search for more information."
     )
+
+class JobDescriptionValidation(BaseModel):
+    valid: Literal["valid", "invalid"] = Field(
+        description="Evaluation result indicating whether the job description is valid or not."
+    )
